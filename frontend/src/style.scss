@@ -257,6 +257,29 @@ input, select, textarea, .input-panel textarea, .options select,
 .playlist-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 12px; font-size: 13px; color: var(--muted); }
 .playlist-pagination > div { display: flex; gap: 8px; }
 .spin { animation: spin 1.5s linear infinite; }
+.settings-page { padding-bottom: 16px; }
+.settings-page .page-heading { padding: 16px 0 12px; }
+.settings-compact.settings-layout { display: flex; flex-direction: column; gap: 14px; }
+.settings-toolbar { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.settings-sections { display: flex; flex-wrap: wrap; gap: 4px; }
+.settings-sections button { border: 0; border-radius: 8px; background: transparent; color: var(--muted); padding: 9px 14px; font-size: 14px; font-weight: 550; }
+.settings-sections button:hover { background: var(--hover); }
+.settings-sections button.selected { color: var(--accent); background: var(--tint); }
+.settings-toolbar > .button { flex-shrink: 0; }
+.unsaved-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.settings-compact .settings-panel { width: 100%; padding: 20px; gap: 14px; }
+.settings-compact .options { gap: 16px; }
+.settings-compact .standalone-options { border: 0; padding: 0; }
+.settings-compact .standalone-options .advanced-body { margin-top: 0; gap: 14px; }
+.settings-general, .settings-session { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.settings-toggles { display: flex; flex-direction: column; gap: 15px; padding-top: 4px; }
+.settings-compact .check-grid { gap: 12px 24px; }
+@media (max-width: 600px) {
+  .settings-toolbar { gap: 8px; align-items: flex-start; }
+  .settings-sections button { padding: 8px 10px; }
+  .settings-general, .settings-session { grid-template-columns: 1fr; gap: 16px; }
+  .settings-compact .settings-panel { padding: 16px; }
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { to { background-position: -200% 0; } }
 @media (max-width: 1000px) { .app-shell { padding: 0 25px; } .workspace-grid { grid-template-columns: minmax(0, 1fr) 270px; gap: 18px; } .queue-sidebar { padding: 14px; } .media-thumbnail { width: 76px; height: 50px; } .keyboard-hint { display: none; } .input-actions .primary { margin-left: auto; } }

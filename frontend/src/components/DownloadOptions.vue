@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { FolderOpen, SlidersHorizontal } from 'lucide-vue-next'
-const props = defineProps({ modelValue: { type: Object, required: true }, advancedOpen: Boolean, disabled: Boolean })
+const props = defineProps({ modelValue: { type: Object, required: true }, advancedOpen: Boolean, disabled: Boolean, section: { type: String, default: 'all' } })
 const emit = defineEmits(['update:modelValue', 'choose-folder'])
 const set = (key, value) => emit('update:modelValue', { ...props.modelValue, [key]: value })
 const languages = computed({ get: () => props.modelValue.subtitle_languages.join(', '), set: value => set('subtitle_languages', [...new Set(value.split(',').map(s => s.trim()).filter(Boolean))]) })
@@ -10,6 +10,7 @@ const languages = computed({ get: () => props.modelValue.subtitle_languages.join
 <template>
   <fieldset class="options" :disabled="disabled">
     <legend class="sr-only">다운로드 옵션</legend>
+    <template v-if="section !== 'advanced'">
     <div class="options-grid">
       <label>저장 방식<select :value="modelValue.format_type" @change="set('format_type', $event.target.value)"><option value="video">영상</option><option value="audio">오디오</option></select></label>
       <template v-if="modelValue.format_type === 'video'">
@@ -23,8 +24,9 @@ const languages = computed({ get: () => props.modelValue.subtitle_languages.join
       </template>
     </div>
     <label class="folder-label">저장 위치<div class="folder-control"><input :value="modelValue.download_dir" @change="set('download_dir', $event.target.value)" placeholder="저장 폴더의 전체 경로" /><button type="button" class="icon-button" aria-label="저장 폴더 선택" @click="emit('choose-folder')"><FolderOpen :size="18" /></button></div></label>
-    <details :open="advancedOpen" class="advanced-options">
-      <summary><SlidersHorizontal :size="15" /> 고급 옵션 <span>자막 · 추가 파일 · 중복 처리</span></summary>
+    </template>
+    <component :is="section === 'advanced' ? 'div' : 'details'" v-if="section !== 'basic'" :open="advancedOpen" class="advanced-options" :class="{ 'standalone-options': section === 'advanced' }">
+      <summary v-if="section !== 'advanced'"><SlidersHorizontal :size="15" /> 고급 옵션 <span>자막 · 추가 파일 · 중복 처리</span></summary>
       <div class="advanced-body">
         <div class="options-grid two">
           <label>같은 이름의 파일<select :value="modelValue.collision" @change="set('collision', $event.target.value)"><option value="rename">이름 변경하여 저장</option><option value="skip">기존 파일 건너뛰기</option><option value="overwrite">기존 파일 덮어쓰기</option></select></label>
@@ -42,6 +44,6 @@ const languages = computed({ get: () => props.modelValue.subtitle_languages.join
           <label class="check"><input type="checkbox" :checked="modelValue.save_metadata" @change="set('save_metadata', $event.target.checked)" /> 영상 정보 JSON 저장</label>
         </div>
       </div>
-    </details>
+    </component>
   </fieldset>
 </template>

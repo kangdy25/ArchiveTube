@@ -56,8 +56,9 @@ def main():
                 assert output.is_file() and output.stat().st_size > 0
                 click('설정')
                 wait_js('document.querySelector(".settings-layout") !== null')
+                click('화면·편의')
                 window.evaluate_js('const theme = Array.from(document.querySelectorAll("select")).find(x=>Array.from(x.options).some(o=>o.value==="light")); theme.value="light"; theme.dispatchEvent(new Event("change",{bubbles:true}))')
-                click('설정 저장')
+                click('저장')
                 wait_js('document.documentElement.dataset.theme === "light"')
                 assert api.store.get_settings()['theme'] == 'light'
                 print('PASS: native WebView bridge, analysis, selection, offline download, final file, history and settings/theme', flush=True)
