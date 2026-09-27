@@ -8,3 +8,6 @@ pythonnet==3.0.5
 pywebview==6.1
 typing_extensions==4.15.0
 yt-dlp[default]==2026.08.19
+platformdirs==4.3.8
+pyperclip==1.9.0
+desktop-notifier==6.2.0

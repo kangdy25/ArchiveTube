@@ -3,10 +3,23 @@ import sys
 import subprocess
 import shutil
 import platform
+import tempfile
 import imageio_ffmpeg
 from PIL import Image
 
 APP_NAME = 'ArchiveTube'
+
+def copy_binary(source, destination):
+    # Never modify an executable inode in place: an active process may use it,
+    # and macOS caches code-signature pages by inode. Replace the staged copy.
+    descriptor, temporary = tempfile.mkstemp(prefix='.runtime-', dir=os.path.dirname(destination))
+    os.close(descriptor)
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, destination)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
 
 def get_project_root():
     # Since build.py is now in the 'deploy' folder, the project root is its parent directory
@@ -34,8 +47,17 @@ def prepare_binaries():
     dest_name = 'ffmpeg.exe' if platform.system() == 'Windows' else 'ffmpeg'
     dest_path = os.path.join(bin_dir, dest_name)
     
-    shutil.copy2(ffmpeg_exe, dest_path)
+    copy_binary(ffmpeg_exe, dest_path)
     print(f"✅ Copied ffmpeg to {dest_path}")
+
+    ffprobe_exe = shutil.which('ffprobe.exe' if platform.system() == 'Windows' else 'ffprobe')
+    if not ffprobe_exe:
+        raise RuntimeError('FFprobe is required. Install the FFmpeg tools and add ffprobe to PATH.')
+    ffprobe_dest = os.path.join(bin_dir, 'ffprobe.exe' if platform.system() == 'Windows' else 'ffprobe')
+    copy_binary(ffprobe_exe, ffprobe_dest)
+    # Homebrew's ffprobe depends on shared libraries; --add-binary lets PyInstaller
+    # discover, relocate and sign these dependencies for the app bundle.
+    print(f"✅ Copied ffprobe to {ffprobe_dest}")
 
     # Recent YouTube streams require yt-dlp's EJS challenge solver. Bundle a
     # supported Node runtime so the macOS/Windows app does not depend on the
@@ -46,7 +68,7 @@ def prepare_binaries():
         sys.exit(1)
     node_name = 'node.exe' if platform.system() == 'Windows' else 'node'
     node_dest = os.path.join(bin_dir, node_name)
-    shutil.copy2(node_exe, node_dest)
+    copy_binary(node_exe, node_dest)
     print(f"✅ Copied Node.js to {node_dest}\n")
 
 def prepare_icons():
@@ -108,9 +130,15 @@ def build_pyinstaller(icon_path):
         '--onefile' if platform.system() == 'Windows' else '--onedir',
         '--windowed', # Same as --noconsole
         '--name', APP_NAME,
+        '--distpath', os.environ.get('ARCHIVETUBE_DIST_DIR', os.path.join(root_dir, 'dist')),
         f'--add-data=frontend/dist{separator}frontend/dist',
-        f'--add-data=bin{separator}bin',
+        f'--add-binary=bin/ffmpeg{".exe" if platform.system() == "Windows" else ""}{separator}bin',
+        f'--add-binary=bin/ffprobe{".exe" if platform.system() == "Windows" else ""}{separator}bin',
+        f'--add-binary=bin/node{".exe" if platform.system() == "Windows" else ""}{separator}bin',
         '--collect-all', 'yt_dlp_ejs',
+        '--collect-all', 'desktop_notifier',
+        '--hidden-import', 'pyperclip',
+        '--hidden-import', 'platformdirs',
     ]
     
     if icon_path:
@@ -118,6 +146,13 @@ def build_pyinstaller(icon_path):
 
     if platform.system() == 'Darwin':
         args.extend(['--osx-bundle-identifier', 'com.archivetube.app'])
+        # An explicit '-' enables hardened runtime in PyInstaller, which rejects
+        # the bundled ad-hoc signed FFprobe libraries. The default already signs
+        # locally without enabling library validation.
+        identity = os.environ.get('ARCHIVETUBE_SIGNING_IDENTITY')
+        if identity and identity != '-':
+            args.extend(['--codesign-identity', identity])
+            args.extend(['--osx-entitlements-file', os.path.join(root_dir, 'deploy', 'entitlements.plist')])
         
     args.append(backend_main)
     
@@ -129,10 +164,16 @@ def build_pyinstaller(icon_path):
         sys.exit(1)
     
     dist_file = os.path.join(
-        root_dir,
-        'dist',
+        os.environ.get('ARCHIVETUBE_DIST_DIR', os.path.join(root_dir, 'dist')),
         f'{APP_NAME}.exe' if platform.system() == 'Windows' else f'{APP_NAME}.app',
     )
+    if platform.system() == 'Darwin':
+        subprocess.run(['codesign', '--verify', '--deep', '--strict', dist_file], check=True)
+        runtime_dir = os.path.join(dist_file, 'Contents', 'Frameworks', 'bin')
+        for executable, argument in [('ffmpeg', '-version'), ('ffprobe', '-version'), ('node', '--version')]:
+            result = subprocess.run([os.path.join(runtime_dir, executable), argument],
+                                    check=True, capture_output=True, text=True)
+            print(f'✅ Bundled runtime: {result.stdout.splitlines()[0]}')
     print(f"🎉 Build successful! Executable is at: {dist_file}")
 
 if __name__ == '__main__':
